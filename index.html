@@ -2,55 +2,66 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>러닝 기록 시스템</title>
   <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { 
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
     body { 
       font-family: 'Noto Sans KR', sans-serif; 
       background: #f5f5f5; 
-      padding: 20px; 
+      padding: 0;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
     .container { 
-      max-width: 600px; 
+      max-width: 100%;
+      max-height: 100vh;
       margin: 0 auto; 
       background: white; 
-      border-radius: 10px; 
-      padding: 20px; 
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+      padding: 15px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     h1 { 
       color: #4285F4; 
       text-align: center; 
-      margin-bottom: 15px; 
-      font-size: 28px;
+      margin-bottom: 12px; 
+      font-size: 24px;
     }
     .session-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 15px;
+      gap: 8px;
+      margin-bottom: 12px;
       justify-content: center;
       flex-wrap: wrap;
     }
     .session-info {
       background: #f0f7ff;
       border: 2px solid #4285F4;
-      padding: 10px 15px;
+      padding: 8px 12px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 11px;
       color: #4285F4;
     }
     .session-info strong {
-      font-size: 14px;
+      font-size: 12px;
     }
     .mode-badge {
       background: #e8f5e9;
       border: 2px solid #4caf50;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 11px;
       color: #2e7d32;
       font-weight: bold;
     }
@@ -63,8 +74,8 @@
       background: #ff9800;
       color: white;
       border: none;
-      padding: 10px 15px;
-      font-size: 12px;
+      padding: 8px 12px;
+      font-size: 11px;
       border-radius: 5px;
       cursor: pointer;
       transition: background 0.3s;
@@ -75,12 +86,13 @@
     }
     .camera-section {
       position: relative;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
       background: #000;
       border: 2px solid #4285F4;
       border-radius: 8px;
       overflow: hidden;
       aspect-ratio: 4/3;
+      width: 100%;
     }
     #video { 
       width: 100%;
@@ -88,20 +100,21 @@
       display: none;
       background: #000;
       object-fit: cover;
+      -webkit-transform: translate3d(0, 0, 0);
     }
     #canvas { display: none; }
     .camera-controls {
       display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
+      gap: 8px;
+      margin-bottom: 12px;
       align-items: center;
     }
     select {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       border: 1px solid #ddd;
       border-radius: 5px;
-      font-size: 14px;
+      font-size: 13px;
       background: white;
       color: #333;
     }
@@ -109,29 +122,38 @@
       background: #4285F4; 
       color: white;
       border: none; 
-      padding: 10px 20px; 
-      font-size: 14px; 
+      padding: 8px 16px; 
+      font-size: 13px; 
       border-radius: 5px; 
       cursor: pointer; 
       transition: background 0.3s;
       flex: 1;
+      -webkit-user-select: none;
+      user-select: none;
     }
     button:hover { background: #357ae8; }
+    button:active { background: #2e5cc8; }
     button:disabled { background: #ccc; cursor: not-allowed; }
     .button-group {
       display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
+      gap: 8px;
+      margin-bottom: 15px;
     }
     .message { 
-      padding: 15px; 
-      margin: 10px 0; 
+      padding: 12px; 
+      margin: 8px 0; 
       border-radius: 5px; 
       display: none;
       font-weight: bold;
-      font-size: 16px;
+      font-size: 14px;
       text-align: center;
-      animation: slideIn 0.3s ease-out;
+      animation: slideIn 0.2s ease-out;
+      position: fixed;
+      top: 20px;
+      left: 15px;
+      right: 15px;
+      z-index: 999;
+      max-width: calc(100% - 30px);
     }
     @keyframes slideIn {
       from { transform: translateY(-20px); opacity: 0; }
@@ -156,18 +178,19 @@
     .stats { 
       background: #f0f7ff;
       border: 2px solid #4285F4;
-      padding: 15px; 
+      padding: 12px; 
       border-radius: 8px; 
-      margin: 15px 0; 
+      margin: 12px 0; 
       text-align: center; 
     }
     .stats h3 {
       color: #4285F4;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      font-size: 14px;
     }
     .stats p { 
-      margin: 10px 0; 
-      font-size: 16px; 
+      margin: 6px 0; 
+      font-size: 13px; 
     }
     .stats strong { 
       color: #34A853; 
@@ -175,21 +198,21 @@
     .section {
       background: #f9f9f9;
       border: 0.5px solid #e0e0e0;
-      padding: 15px;
+      padding: 12px;
       border-radius: 8px;
       margin: 10px 0;
     }
     .section h3 {
       color: #4285F4;
-      margin-bottom: 10px;
-      font-size: 16px;
+      margin-bottom: 8px;
+      font-size: 14px;
     }
     button.batch-end {
       background: #f44336;
       width: 100%;
-      margin-top: 10px;
+      margin-top: 8px;
       font-weight: bold;
-      font-size: 16px;
+      font-size: 14px;
     }
     button.batch-end:hover {
       background: #da190b;
@@ -202,9 +225,10 @@
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.7);
-      z-index: 1000;
+      z-index: 2000;
       align-items: center;
       justify-content: center;
+      padding: 20px;
     }
     .modal.show {
       display: flex;
@@ -212,11 +236,14 @@
     .modal-content {
       background: white;
       border-radius: 15px;
-      padding: 30px;
+      padding: 25px;
       max-width: 500px;
-      width: 90%;
+      width: 100%;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       animation: slideUp 0.3s ease-out;
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
     @keyframes slideUp {
       from { transform: translateY(30px); opacity: 0; }
@@ -224,32 +251,32 @@
     }
     .modal-header {
       text-align: center;
-      margin-bottom: 25px;
+      margin-bottom: 20px;
       border-bottom: 3px solid #4285F4;
-      padding-bottom: 15px;
+      padding-bottom: 12px;
     }
     .modal-header h2 {
       color: #4285F4;
-      font-size: 24px;
-      margin-bottom: 5px;
+      font-size: 20px;
+      margin-bottom: 4px;
     }
     .mode-buttons {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin-bottom: 20px;
+      gap: 12px;
+      margin-bottom: 15px;
     }
     .mode-btn {
-      padding: 20px;
+      padding: 15px;
       border: 2px solid #ddd;
       border-radius: 10px;
       background: white;
       cursor: pointer;
       transition: all 0.3s;
       text-align: center;
-      font-size: 14px;
+      font-size: 12px;
     }
-    .mode-btn:hover {
+    .mode-btn:active {
       border-color: #4285F4;
       background: #f0f7ff;
     }
@@ -258,24 +285,25 @@
       background: #f0f7ff;
     }
     .mode-btn .emoji {
-      font-size: 32px;
-      margin-bottom: 10px;
+      font-size: 28px;
+      margin-bottom: 8px;
     }
     .input-group {
-      margin: 15px 0;
+      margin: 12px 0;
     }
     .input-group label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #333;
       font-weight: bold;
+      font-size: 13px;
     }
     .input-group input {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: 2px solid #ddd;
       border-radius: 5px;
-      font-size: 16px;
+      font-size: 14px;
     }
     .input-group input:focus {
       outline: none;
@@ -283,11 +311,12 @@
     }
     .modal-buttons {
       display: flex;
-      gap: 10px;
-      margin-top: 25px;
+      gap: 8px;
+      margin-top: 20px;
     }
     .modal-buttons button {
       flex: 1;
+      padding: 10px;
     }
     .modal-buttons button.cancel {
       background: #999;
@@ -303,7 +332,7 @@
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.6);
-      z-index: 1000;
+      z-index: 2000;
       align-items: center;
       justify-content: center;
     }
@@ -313,46 +342,46 @@
     .end-modal-content {
       background: white;
       border-radius: 15px;
-      padding: 30px;
+      padding: 25px;
       max-width: 500px;
       width: 90%;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
       text-align: center;
     }
     .end-icon {
-      font-size: 48px;
-      margin-bottom: 15px;
+      font-size: 40px;
+      margin-bottom: 12px;
     }
     .end-title {
-      font-size: 24px;
+      font-size: 20px;
       color: #4285F4;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       font-weight: bold;
     }
     .end-time {
-      font-size: 18px;
+      font-size: 14px;
       color: #666;
-      margin: 15px 0;
+      margin: 12px 0;
     }
     .end-time strong {
-      font-size: 24px;
+      font-size: 20px;
       color: #34A853;
       display: block;
-      margin-top: 10px;
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>러닝 기록 시스템</h1>
+  <h1>🏃 러닝 기록</h1>
   
   <div class="session-header">
     <div class="session-info">
-      <strong>세션: <span id="sessionDisplay">준비중...</span></strong>
+      <strong>세션: <span id="sessionDisplay">준비중</span></strong>
     </div>
-    <div class="mode-badge" id="modeBadge">모드: 준비중</div>
-    <button class="new-session-header" id="newSessionBtn" onclick="startNewSession()">🔄 새 시작</button>
+    <div class="mode-badge" id="modeBadge">준비중</div>
+    <button class="new-session-header" onclick="startNewSession()">🔄</button>
   </div>
   
   <div class="camera-section">
@@ -368,22 +397,21 @@
   </div>
   
   <div class="button-group">
-    <button id="startBtn" onclick="startCamera()">카메라 시작</button>
-    <button id="stopBtn" onclick="stopCamera()" disabled>카메라 중지</button>
+    <button id="startBtn" onclick="startCamera()">시작</button>
+    <button id="stopBtn" onclick="stopCamera()" disabled>중지</button>
   </div>
   
   <div id="message" class="message"></div>
   
   <div id="stats" class="stats" style="display:none;">
-    <h3>현재 통계</h3>
-    <p>누적 스캔: <strong id="scanCount">0</strong></p>
-    <p id="lastStudent" style="display:none;">마지막 학생: <strong id="lastName">-</strong></p>
-    <p id="distanceInfo" style="display:none;">누적 거리: <strong id="lastDistance">-</strong> km</p>
+    <h3>통계</h3>
+    <p>스캔: <strong id="scanCount">0</strong>회</p>
+    <p id="lastStudent" style="display:none;">학생: <strong id="lastName">-</strong></p>
+    <p id="distanceInfo" style="display:none;">거리: <strong id="lastDistance">-</strong>km</p>
   </div>
 
   <div class="section">
-    <h3>운동 관리</h3>
-    <button class="batch-end" id="batchEndBtn" onclick="batchEndSession()" style="display:none;">🛑 일괄 운동 종료</button>
+    <button class="batch-end" id="batchEndBtn" onclick="batchEndSession()" style="display:none;">🛑 일괄 종료</button>
   </div>
 </div>
 
@@ -391,20 +419,20 @@
 <div id="modeModal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>🏃 운동 모드 선택</h2>
-      <p>오늘의 러닝 운동 방식을 선택해주세요</p>
+      <h2>운동 모드</h2>
+      <p style="font-size: 12px;">모드를 선택하세요</p>
     </div>
     
     <div class="mode-buttons">
       <div class="mode-btn" id="maxDistanceBtn" onclick="selectMode('maxDistance')">
         <div class="emoji">📏</div>
-        <strong>최대 거리</strong>
-        <p style="font-size: 12px; color: #666; margin-top: 10px;">목표 거리 설정<br>(예: 10km 도달 시 종료)</p>
+        <strong>최대거리</strong>
+        <p style="font-size: 11px; color: #666; margin-top: 8px;">목표 거리<br>자동 종료</p>
       </div>
       <div class="mode-btn" id="freeBtn" onclick="selectMode('free')">
         <div class="emoji">🆓</div>
         <strong>자율</strong>
-        <p style="font-size: 12px; color: #666; margin-top: 10px;">거리 제한 없음<br>(교사가 일괄 종료)</p>
+        <p style="font-size: 11px; color: #666; margin-top: 8px;">거리 제한<br>없음</p>
       </div>
     </div>
     
@@ -424,9 +452,9 @@
 <div id="endModal" class="pace-end-modal">
   <div class="end-modal-content">
     <div class="end-icon">🏁</div>
-    <div class="end-title">운동이 종료되었습니다!</div>
+    <div class="end-title">운동 종료!</div>
     <div class="end-time">
-      학생: <span id="endStudentName">-</span>
+      <span id="endStudentName">-</span>
       <strong id="endTotalTime">00:00:00</strong>
     </div>
   </div>
@@ -441,28 +469,60 @@
   let frameCount = 0;
   let lastQRData = null;
   let qrCooldown = false;
+  let scanLoopInterval = null;
+  
+  // 메시지 큐
+  let messageQueue = [];
+  let messageDisplaying = false;
   
   // 세션 설정
   let currentSessionId = null;
-  let sessionMode = null;  // 'maxDistance' 또는 'free'
+  let sessionMode = null;
   let maxDistance = null;
-  let endedStudents = {};  // { "01-001": true, ... }
+  let endedStudents = {};
   
   // ================================================
-  // 초기 로드
+  // 메시지 큐 시스템
   // ================================================
-  window.addEventListener('load', function() {
-    console.log('🚀 페이지 로드 완료');
-    initializeSession();
-  });
+  function queueMessage(msg, type) {
+    messageQueue.push({msg, type});
+    processMessageQueue();
+  }
 
-  function initializeSession() {
+  function processMessageQueue() {
+    if (messageDisplaying || messageQueue.length === 0) return;
+    
+    messageDisplaying = true;
+    const {msg, type} = messageQueue.shift();
+    
+    const msgDiv = document.getElementById('message');
+    msgDiv.textContent = msg;
+    msgDiv.className = 'message show ' + type;
+    
+    setTimeout(() => {
+      msgDiv.classList.remove('show');
+      messageDisplaying = false;
+      processMessageQueue();
+    }, 2000);
+  }
+
+  function clearMessage() {
+    const msgDiv = document.getElementById('message');
+    msgDiv.classList.remove('show');
+    messageQueue = [];
+  }
+
+  // ================================================
+  // 초기화
+  // ================================================
+  function init() {
+    console.log('🚀 초기화 중...');
+    
     currentSessionId = localStorage.getItem('currentSessionId');
     sessionMode = localStorage.getItem('sessionMode');
     maxDistance = localStorage.getItem('maxDistance');
     
     if (!currentSessionId || !sessionMode) {
-      // 새 세션 시작
       showModeModal();
     } else {
       displaySessionInfo();
@@ -471,7 +531,7 @@
   }
 
   // ================================================
-  // 모드 선택 모달
+  // 모드 선택
   // ================================================
   let selectedMode = null;
 
@@ -481,114 +541,99 @@
 
   function selectMode(mode) {
     selectedMode = mode;
-    console.log('모드 선택:', mode);
     
-    // 버튼 스타일 변경
     document.getElementById('maxDistanceBtn').classList.remove('selected');
     document.getElementById('freeBtn').classList.remove('selected');
     
     if (mode === 'maxDistance') {
       document.getElementById('maxDistanceBtn').classList.add('selected');
       document.getElementById('distanceInputGroup').style.display = 'block';
-      document.getElementById('confirmModeBtn').disabled = false;
     } else {
       document.getElementById('freeBtn').classList.add('selected');
       document.getElementById('distanceInputGroup').style.display = 'none';
-      document.getElementById('confirmModeBtn').disabled = false;
     }
+    document.getElementById('confirmModeBtn').disabled = false;
   }
 
   function confirmMode() {
     if (!selectedMode) {
-      showMessage('모드를 선택해주세요', 'error');
+      queueMessage('모드를 선택하세요', 'error');
       return;
     }
     
     if (selectedMode === 'maxDistance') {
       const distance = parseFloat(document.getElementById('maxDistanceInput').value);
       if (!distance || distance <= 0) {
-        showMessage('목표 거리를 입력해주세요', 'error');
+        queueMessage('거리를 입력하세요', 'error');
         return;
       }
       maxDistance = distance;
       localStorage.setItem('maxDistance', maxDistance);
     }
     
-    // 새 세션 시작
     generateNewSessionId();
     sessionMode = selectedMode;
     localStorage.setItem('sessionMode', sessionMode);
     
-    // 모달 닫기
     document.getElementById('modeModal').classList.remove('show');
-    
     displaySessionInfo();
     updateModeBadge();
-    showMessage('✅ 운동이 준비되었습니다!', 'success');
+    queueMessage('✅ 준비 완료!', 'success');
   }
 
   function cancelModeSelect() {
-    if (confirm('운동 설정을 취소하시겠습니까?')) {
+    if (confirm('취소하시겠습니까?')) {
       document.getElementById('modeModal').classList.remove('show');
     }
   }
 
   function generateNewSessionId() {
-    const now = new Date();
-    currentSessionId = 'SESSION_' + now.getTime();
+    currentSessionId = 'SESSION_' + Date.now();
     localStorage.setItem('currentSessionId', currentSessionId);
     endedStudents = {};
   }
 
   function displaySessionInfo() {
     const dateObj = new Date(parseInt(currentSessionId.split('_')[1]));
-    const dateStr = dateObj.toLocaleString('ko-KR', {
-      month: '2-digit',
-      day: '2-digit',
+    const timeStr = dateObj.toLocaleTimeString('ko-KR', {
       hour: '2-digit',
       minute: '2-digit'
     });
-    document.getElementById('sessionDisplay').textContent = dateStr;
+    document.getElementById('sessionDisplay').textContent = timeStr;
   }
 
   function updateModeBadge() {
     const badge = document.getElementById('modeBadge');
     if (sessionMode === 'maxDistance') {
       badge.className = 'mode-badge max-distance';
-      badge.textContent = `📏 최대거리: ${maxDistance}km`;
+      badge.textContent = `📏 ${maxDistance}km`;
       document.getElementById('batchEndBtn').style.display = 'none';
     } else {
       badge.className = 'mode-badge';
-      badge.textContent = '🆓 자율 모드';
+      badge.textContent = '🆓 자율';
       document.getElementById('batchEndBtn').style.display = 'block';
     }
   }
 
   function startNewSession() {
     if (cameraStarted) {
-      showMessage('⚠️ 카메라를 먼저 중지해주세요', 'error');
+      queueMessage('⚠️ 카메라 중지 후 진행', 'error');
       return;
     }
     
-    if (confirm('새로운 운동을 시작하시겠습니까?')) {
-      localStorage.removeItem('currentSessionId');
-      localStorage.removeItem('sessionMode');
-      localStorage.removeItem('maxDistance');
-      document.getElementById('scanCount').textContent = '0';
-      document.getElementById('stats').style.display = 'none';
-      
+    if (confirm('새로 시작?')) {
+      localStorage.clear();
       location.reload();
     }
   }
 
   // ================================================
-  // 카메라 시작
+  // 카메라
   // ================================================
   async function startCamera() {
     if (cameraStarted || !sessionMode) return;
     
     cameraStarted = true;
-    frameCount = 0;
     
     try {
       const facingMode = document.getElementById('cameraSelect').value;
@@ -612,11 +657,12 @@
       document.getElementById('cameraSelect').disabled = true;
       scanning = true;
       
-      setTimeout(scan, 200);
+      startScanLoop();
+      queueMessage('✅ 스캔 시작', 'success');
       
     } catch (error) {
-      console.error('❌ 카메라 오류:', error);
-      showMessage('카메라 오류: ' + error.message, 'error');
+      console.error('카메라 오류:', error);
+      queueMessage('❌ 카메라 오류', 'error');
       cameraStarted = false;
       document.getElementById('startBtn').disabled = false;
     }
@@ -630,72 +676,80 @@
     video.style.display = 'none';
     scanning = false;
     cameraStarted = false;
+    
+    if (scanLoopInterval) {
+      clearInterval(scanLoopInterval);
+      scanLoopInterval = null;
+    }
+    
     document.getElementById('startBtn').disabled = false;
     document.getElementById('stopBtn').disabled = true;
     document.getElementById('cameraSelect').disabled = false;
+    queueMessage('⏹️ 스캔 중지', 'info');
   }
 
-  function scan() {
-    if (!scanning) return;
+  // ================================================
+  // 스캔 루프 (setInterval 사용)
+  // ================================================
+  function startScanLoop() {
+    if (scanLoopInterval) clearInterval(scanLoopInterval);
     
-    try {
-      frameCount++;
+    scanLoopInterval = setInterval(() => {
+      if (!scanning) return;
       
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      try {
+        frameCount++;
         
-        if (canvas.width === 0 || canvas.height === 0) {
-          requestAnimationFrame(scan);
-          return;
-        }
-        
-        canvasContext.drawImage(video, 0, 0);
-        const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-        
-        if (typeof jsQR === 'function') {
-          const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
           
-          if (code && !qrCooldown) {
-            if (lastQRData === code.data) {
-              requestAnimationFrame(scan);
-              return;
+          if (canvas.width === 0 || canvas.height === 0) return;
+          
+          canvasContext.drawImage(video, 0, 0);
+          const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+          
+          if (typeof jsQR === 'function') {
+            const code = jsQR(imageData.data, canvas.width, canvas.height);
+            
+            if (code && !qrCooldown) {
+              if (lastQRData === code.data) {
+                return;
+              }
+              
+              console.log('✅ QR:', code.data);
+              lastQRData = code.data;
+              qrCooldown = true;
+              
+              handleQRData(code.data);
             }
-            
-            console.log('✅ QR 감지:', code.data);
-            lastQRData = code.data;
-            qrCooldown = true;
-            
-            handleQRData(code.data);
-            return;
           }
         }
+      } catch (e) {
+        console.error('스캔 오류:', e);
       }
-    } catch (e) {
-      console.error('QR 스캔 오류:', e);
-    }
-    
-    requestAnimationFrame(scan);
+    }, 50);  // 20fps
   }
 
+  // ================================================
+  // QR 처리
+  // ================================================
   async function handleQRData(qrText) {
     scanning = false;
     
     try {
-      // 운동 종료된 학생 체크
       if (endedStudents[qrText]) {
-        showMessage('❌ 이 학생은 이미 운동을 종료했습니다', 'error');
+        queueMessage('❌ 이미 종료', 'error');
         resumeScanning();
         return;
       }
       
-      showMessage('처리 중...', 'info');
+      queueMessage('⏳ 처리중...', 'info');
       
       const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(qrText) + '&sessionId=' + encodeURIComponent(currentSessionId);
       
       const response = await fetch(appScriptUrl);
       const result = await response.json();
-      console.log('✅ 응답:', result);
       
       if (result.success) {
         const scanCount = result.data.accumulated.scanCount;
@@ -703,44 +757,39 @@
         const totalTime = result.data.accumulated.totalTime || "00:00:00";
         const studentName = result.data.student.name;
         
-        // UI 업데이트
         updateDisplay(result.data.student, distance, scanCount);
         
-        // 첫 번째 스캔
+        // 메시지 표시
         if (scanCount === 1) {
-          console.log('1️⃣ 첫 스캔');
-          clearMessage();
-          showMessage('🏃 러닝 시작!', 'success');
+          queueMessage('🏃 러닝 시작!', 'success');
         } else {
-          console.log('2️⃣ 다중 스캔');
-          clearMessage();
-          showMessage(`📍 라운드 ${scanCount} - 거리: ${distance.toFixed(1)}km`, 'info');
+          queueMessage(`📍 라운드 ${scanCount}`, 'info');
         }
         
-        // 최대거리 모드 체크
+        // 최대거리 체크
         if (sessionMode === 'maxDistance' && distance >= maxDistance) {
-          console.log('🏁 목표거리 도달!');
           endedStudents[qrText] = true;
           showEndModal(studentName, totalTime);
           resumeScanning();
           return;
         }
-        
-        // 자율 모드 - 페이스 정보 표시
-        if (sessionMode === 'free' && scanCount > 1 && result.data.pace) {
-          showPaceInfo(result.data.pace, studentName);
-        }
       } else {
-        clearMessage();
-        showMessage('오류: ' + result.message, 'error');
+        queueMessage('❌ 오류', 'error');
       }
     } catch (error) {
-      console.error('❌ 오류:', error);
-      clearMessage();
-      showMessage('통신 오류 발생', 'error');
+      console.error('처리 오류:', error);
+      queueMessage('❌ 통신 오류', 'error');
     }
     
     resumeScanning();
+  }
+
+  function resumeScanning() {
+    setTimeout(() => {
+      lastQRData = null;
+      qrCooldown = false;
+      scanning = true;
+    }, 300);
   }
 
   function updateDisplay(student, distance, scanCount) {
@@ -755,41 +804,8 @@
     }
   }
 
-  function resumeScanning() {
-    setTimeout(() => {
-      lastQRData = null;
-      qrCooldown = false;
-      scanning = true;
-      scan();
-    }, 800);
-  }
-
-  function showMessage(msg, type) {
-    const msgDiv = document.getElementById('message');
-    msgDiv.textContent = msg;
-    msgDiv.className = 'message show ' + type;
-  }
-
-  function clearMessage() {
-    const msgDiv = document.getElementById('message');
-    msgDiv.classList.remove('show');
-  }
-
   // ================================================
-  // 페이스 정보 (자율 모드)
-  // ================================================
-  function showPaceInfo(pace, studentName) {
-    if (!pace) return;
-    
-    const currentMin = String(pace.current.minutes).padStart(2, '0');
-    const currentSec = String(pace.current.seconds).padStart(2, '0');
-    
-    const info = `페이스: ${currentMin}:${currentSec} (${studentName})`;
-    console.log('📊', info);
-  }
-
-  // ================================================
-  // 운동 종료 (최대거리 모드)
+  // 모달
   // ================================================
   function showEndModal(studentName, totalTime) {
     document.getElementById('endStudentName').textContent = studentName;
@@ -803,27 +819,29 @@
     }, 3000);
   }
 
-  // ================================================
-  // 일괄 운동 종료 (자율 모드)
-  // ================================================
   function batchEndSession() {
-    if (confirm('모든 학생의 운동을 종료하시겠습니까?')) {
+    if (confirm('모든 학생 종료?')) {
       stopCamera();
-      showMessage('✅ 모든 학생의 운동이 종료되었습니다', 'success');
+      queueMessage('✅ 종료됨', 'success');
       
       setTimeout(() => {
-        localStorage.removeItem('currentSessionId');
-        localStorage.removeItem('sessionMode');
-        localStorage.removeItem('maxDistance');
+        localStorage.clear();
         location.reload();
       }, 2000);
     }
   }
 
   // ================================================
-  // 초기화
+  // 시작
   // ================================================
-  console.log('🚀 앱 준비 완료');
+  init();
+  
+  // Wake Lock (화면 켜기)
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').catch(err => {
+      console.log('Wake Lock 실패:', err);
+    });
+  }
 </script>
 
 </body>
