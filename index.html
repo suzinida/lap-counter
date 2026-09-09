@@ -13,7 +13,7 @@
     button { background: #4285F4; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 5px; cursor: pointer; margin: 5px; width: 100%; }
     button:hover { background: #357ae8; }
     button:disabled { background: #ccc; cursor: not-allowed; }
-    #video { width: 100%; border: 2px solid #4285F4; border-radius: 8px; margin: 15px 0; display: none; }
+    #video { width: 100%; border: 2px solid #4285F4; border-radius: 8px; margin: 15px 0; display: none; background: #000; }
     #canvas { display: none; }
     .message { padding: 10px; margin: 10px 0; border-radius: 5px; display: none; }
     .message.show { display: block; }
@@ -31,7 +31,7 @@
   <h1>바퀴 카운팅 시스템</h1>
   
   <div>
-    <video id="video" playsinline></video>
+    <video id="video" autoplay muted playsinline></video>
     <canvas id="canvas"></canvas>
     
     <button id="startBtn" onclick="startCamera()">카메라 시작</button>
@@ -59,11 +59,10 @@
   let scanning = false;
   let db;
   
-  // IndexedDB 초기화
   const dbRequest = indexedDB.open('LapCountingDB', 1);
   
   dbRequest.onerror = function() { 
-    log('DB 열기 실패'); 
+    console.error('DB 열기 실패');
   };
   
   dbRequest.onupgradeneeded = function(e) {
@@ -75,33 +74,55 @@
   
   dbRequest.onsuccess = function(e) {
     db = e.target.result;
+    console.log('DB 준비 완료');
     updateLocalCount();
   };
 
-  function log(msg) {
-    console.log(msg);
-  }
-
   async function startCamera() {
     try {
+      console.log('카메라 요청 중...');
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
       });
+      
+      console.log('카메라 스트림 획득 성공');
+      
       video.srcObject = stream;
       video.style.display = 'block';
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
-      scanning = true;
-      scan();
+      
+      video.onloadedmetadata = function() {
+        console.log('비디오 메타데이터 로드됨');
+        video.play().then(function() {
+          console.log('비디오 재생 시작');
+          document.getElementById('startBtn').disabled = true;
+          document.getElementById('stopBtn').disabled = false;
+          scanning = true;
+          scan();
+        }).catch(function(error) {
+          console.error('비디오 재생 오류:', error);
+          showMessage('비디오 재생 실패: ' + error.message, 'error');
+        });
+      };
+      
     } catch (error) {
-      showMessage('카메라 오류: ' + error.message, 'error');
+      console.error('카메라 오류:', error);
+      showMessage('카메라 오류: ' + error.name + ' - ' + error.message, 'error');
     }
   }
 
   function stopCamera() {
+    console.log('카메라 중지');
     const stream = video.srcObject;
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(function(track) { 
+        track.stop(); 
+      });
     }
     video.style.display = 'none';
     scanning = false;
@@ -112,16 +133,24 @@
   function scan() {
     if (!scanning) return;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvasContext.drawImage(video, 0, 0);
-    
-    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-    
-    if (code) {
-      handleQRData(code.data);
-      stopCamera();
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvasContext.drawImage(video, 0, 0);
+      
+      try {
+        const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        
+        if (code) {
+          console.log('QR 코드 감지:', code.data);
+          handleQRData(code.data);
+          stopCamera();
+          return;
+        }
+      } catch (e) {
+        console.error('QR 스캔 오류:', e);
+      }
     }
     
     requestAnimationFrame(scan);
@@ -129,12 +158,15 @@
 
   async function handleQRData(qrText) {
     try {
+      console.log('QR 데이터 처리:', qrText);
       showMessage('처리 중...', 'info');
       
       const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(qrText);
       
       const response = await fetch(appScriptUrl);
       const result = await response.json();
+      
+      console.log('Apps Script 응답:', result);
       
       if (result.success) {
         saveToLocal(qrText, result.student);
@@ -144,29 +176,57 @@
         showMessage('오류: ' + result.message, 'error');
       }
     } catch (error) {
-      // 오프라인: 로컬 저장만
+      console.log('온라인 실패, 오프라인 모드로 저장:', error);
+      
       const parts = qrText.split('-');
       if (parts.length === 2) {
-        saveToLocal(qrText, { classNum: parts[0], studentNum: parts[1], name: parts[0] + '-' + parts[1] });
-        updateDisplay({ classNum: parts[0], studentNum: parts[1], name: parts[0] + '-' + parts[1] });
-        showMessage('오프라인: 로컬 저장 완료', 'success');
+        const student = {
+          classNum: parseInt(parts[0]),
+          studentNum: parseInt(parts[1]),
+          name: parts[0] + '반 ' + parts[1] + '번'
+        };
+        saveToLocal(qrText, student);
+        updateDisplay(student);
+        showMessage('오프라인: 로컬에 저장되었습니다', 'success');
+      } else {
+        showMessage('오류: QR 형식 불일치', 'error');
       }
     }
     
-    setTimeout(startCamera, 2000);
+    setTimeout(function() {
+      console.log('카메라 재시작');
+      startCamera();
+    }, 2000);
   }
 
   function saveToLocal(qrText, student) {
-    if (!db) return;
-    const transaction = db.transaction(['scans'], 'readwrite');
-    const store = transaction.objectStore('scans');
-    store.add({ qr: qrText, student: student, timestamp: new Date().toISOString() });
-    updateLocalCount();
+    if (!db) {
+      console.error('DB가 준비되지 않음');
+      return;
+    }
+    
+    try {
+      const transaction = db.transaction(['scans'], 'readwrite');
+      const store = transaction.objectStore('scans');
+      store.add({
+        qr: qrText,
+        student: student,
+        timestamp: new Date().toISOString()
+      });
+      
+      transaction.oncomplete = function() {
+        console.log('로컬 저장 완료');
+        updateLocalCount();
+      };
+    } catch (e) {
+      console.error('로컬 저장 오류:', e);
+    }
   }
 
   function updateDisplay(student) {
     document.getElementById('stats').style.display = 'block';
-    document.getElementById('scanCount').textContent = parseInt(document.getElementById('scanCount').textContent) + 1;
+    const count = parseInt(document.getElementById('scanCount').textContent) + 1;
+    document.getElementById('scanCount').textContent = count;
     document.getElementById('lastStudent').style.display = 'block';
     document.getElementById('lastName').textContent = student.name;
   }
@@ -174,38 +234,59 @@
   function showMessage(msg, type) {
     const msgDiv = document.getElementById('message');
     msgDiv.textContent = msg;
-    msgDiv.className = 'message show ' + type;
-    setTimeout(() => msgDiv.classList.remove('show'), 3000);
+    msgDiv.className = 'message show ' + (type || 'info');
+    
+    setTimeout(function() {
+      msgDiv.classList.remove('show');
+    }, 3000);
   }
 
   function updateLocalCount() {
     if (!db) return;
-    const transaction = db.transaction(['scans'], 'readonly');
-    const store = transaction.objectStore('scans');
-    const request = store.count();
-    request.onsuccess = () => document.getElementById('localCount').textContent = request.result;
+    
+    try {
+      const transaction = db.transaction(['scans'], 'readonly');
+      const store = transaction.objectStore('scans');
+      const request = store.count();
+      
+      request.onsuccess = function() {
+        document.getElementById('localCount').textContent = request.result;
+      };
+    } catch (e) {
+      console.error('카운트 오류:', e);
+    }
   }
 
   async function uploadData() {
-    if (!db) return;
+    if (!db) {
+      showMessage('DB가 준비되지 않음', 'error');
+      return;
+    }
+    
     showMessage('업로드 중...', 'info');
     
     const transaction = db.transaction(['scans'], 'readonly');
     const store = transaction.objectStore('scans');
     const request = store.getAll();
     
-    request.onsuccess = async () => {
+    request.onsuccess = async function() {
       const scans = request.result;
+      
       if (scans.length === 0) {
         showMessage('업로드할 데이터 없음', 'error');
         return;
       }
       
-      let success = 0, fail = 0;
-      for (let scan of scans) {
+      let success = 0;
+      let fail = 0;
+      
+      for (let i = 0; i < scans.length; i++) {
+        const scan = scans[i];
+        
         try {
           const res = await fetch('https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(scan.qr));
           const result = await res.json();
+          
           if (result.success) {
             success++;
             deleteFromDB(scan.id);
@@ -213,28 +294,38 @@
             fail++;
           }
         } catch (e) {
+          console.error('업로드 오류:', e);
           fail++;
         }
       }
-      showMessage('업로드: 성공 ' + success + ', 실패 ' + fail, 'success');
+      
+      showMessage('업로드 완료: 성공 ' + success + '개, 실패 ' + fail + '개', 'success');
       updateLocalCount();
     };
   }
 
   function deleteFromDB(id) {
     const transaction = db.transaction(['scans'], 'readwrite');
-    transaction.objectStore('scans').delete(id);
+    const store = transaction.objectStore('scans');
+    store.delete(id);
   }
 
   function clearData() {
-    if (confirm('정말 삭제하시겠습니까?')) {
+    if (confirm('정말로 로컬 데이터를 모두 삭제하시겠습니까?')) {
       const transaction = db.transaction(['scans'], 'readwrite');
-      transaction.objectStore('scans').clear();
-      updateLocalCount();
-      document.getElementById('scanCount').textContent = '0';
-      showMessage('삭제 완료', 'success');
+      const store = transaction.objectStore('scans');
+      store.clear();
+      
+      transaction.oncomplete = function() {
+        updateLocalCount();
+        document.getElementById('scanCount').textContent = '0';
+        document.getElementById('stats').style.display = 'none';
+        showMessage('데이터가 삭제되었습니다', 'success');
+      };
     }
   }
+
+  console.log('페이지 로드 완료');
 </script>
 
 </body>
