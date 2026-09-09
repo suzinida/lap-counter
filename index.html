@@ -70,6 +70,20 @@
       border-color: #ff9800;
       color: #e65100;
     }
+    .network-status {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 5px;
+      display: inline-block;
+    }
+    .network-status.online {
+      background: #d4edda;
+      color: #155724;
+    }
+    .network-status.offline {
+      background: #f8d7da;
+      color: #721c24;
+    }
     button.new-session-header {
       background: #ff9800;
       color: white;
@@ -154,6 +168,8 @@
       right: 15px;
       z-index: 999;
       max-width: calc(100% - 30px);
+      word-wrap: break-word;
+      word-break: break-word;
     }
     @keyframes slideIn {
       from { transform: translateY(-20px); opacity: 0; }
@@ -381,6 +397,7 @@
       <strong>세션: <span id="sessionDisplay">준비중</span></strong>
     </div>
     <div class="mode-badge" id="modeBadge">준비중</div>
+    <div class="network-status online" id="networkStatus">🟢 온라인</div>
     <button class="new-session-header" onclick="startNewSession()">🔄</button>
   </div>
   
@@ -481,8 +498,37 @@
   let maxDistance = null;
   let endedStudents = {};
   
+  // 네트워크
+  let isOnline = navigator.onLine;
+
   // ================================================
-  // 메시지 큐 시스템
+  // 네트워크 상태
+  // ================================================
+  window.addEventListener('online', () => {
+    isOnline = true;
+    updateNetworkStatus();
+    queueMessage('🟢 온라인', 'success');
+  });
+
+  window.addEventListener('offline', () => {
+    isOnline = false;
+    updateNetworkStatus();
+    queueMessage('⚠️ 오프라인 모드', 'error');
+  });
+
+  function updateNetworkStatus() {
+    const status = document.getElementById('networkStatus');
+    if (isOnline) {
+      status.className = 'network-status online';
+      status.textContent = '🟢 온라인';
+    } else {
+      status.className = 'network-status offline';
+      status.textContent = '⚠️ 오프라인';
+    }
+  }
+
+  // ================================================
+  // 메시지 큐
   // ================================================
   function queueMessage(msg, type) {
     messageQueue.push({msg, type});
@@ -513,10 +559,54 @@
   }
 
   // ================================================
+  // 통신 (재시도 로직)
+  // ================================================
+  async function fetchWithRetry(url, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`📡 요청 시도 ${i + 1}/${retries}: ${url.substring(0, 50)}...`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);  // 8초 타임아웃
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ 응답 성공');
+        return data;
+        
+      } catch (error) {
+        console.error(`❌ 시도 ${i + 1} 실패:`, error.message);
+        
+        if (i === retries - 1) {
+          throw error;
+        }
+        
+        // 다음 시도 전 대기 (1초, 2초, 3초)
+        await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
+      }
+    }
+  }
+
+  // ================================================
   // 초기화
   // ================================================
   function init() {
     console.log('🚀 초기화 중...');
+    
+    updateNetworkStatus();
     
     currentSessionId = localStorage.getItem('currentSessionId');
     sessionMode = localStorage.getItem('sessionMode');
@@ -689,7 +779,7 @@
   }
 
   // ================================================
-  // 스캔 루프 (setInterval 사용)
+  // 스캔 루프
   // ================================================
   function startScanLoop() {
     if (scanLoopInterval) clearInterval(scanLoopInterval);
@@ -728,11 +818,11 @@
       } catch (e) {
         console.error('스캔 오류:', e);
       }
-    }, 50);  // 20fps
+    }, 50);
   }
 
   // ================================================
-  // QR 처리
+  // QR 처리 (개선된 통신)
   // ================================================
   async function handleQRData(qrText) {
     scanning = false;
@@ -748,8 +838,8 @@
       
       const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(qrText) + '&sessionId=' + encodeURIComponent(currentSessionId);
       
-      const response = await fetch(appScriptUrl);
-      const result = await response.json();
+      console.log('📤 요청 시작');
+      const result = await fetchWithRetry(appScriptUrl, 3);  // ← 재시도 로직!
       
       if (result.success) {
         const scanCount = result.data.accumulated.scanCount;
@@ -759,14 +849,12 @@
         
         updateDisplay(result.data.student, distance, scanCount);
         
-        // 메시지 표시
         if (scanCount === 1) {
           queueMessage('🏃 러닝 시작!', 'success');
         } else {
           queueMessage(`📍 라운드 ${scanCount}`, 'info');
         }
         
-        // 최대거리 체크
         if (sessionMode === 'maxDistance' && distance >= maxDistance) {
           endedStudents[qrText] = true;
           showEndModal(studentName, totalTime);
@@ -774,11 +862,11 @@
           return;
         }
       } else {
-        queueMessage('❌ 오류', 'error');
+        queueMessage(`❌ ${result.message}`, 'error');
       }
     } catch (error) {
-      console.error('처리 오류:', error);
-      queueMessage('❌ 통신 오류', 'error');
+      console.error('처리 오류:', error.message);
+      queueMessage(`❌ 재시도 중...`, 'error');
     }
     
     resumeScanning();
@@ -836,7 +924,6 @@
   // ================================================
   init();
   
-  // Wake Lock (화면 켜기)
   if ('wakeLock' in navigator) {
     navigator.wakeLock.request('screen').catch(err => {
       console.log('Wake Lock 실패:', err);
