@@ -222,6 +222,37 @@
       color: #4285F4;
       margin-bottom: 8px;
       font-size: 14px;
+      font-weight: bold;
+    }
+    .offline-data-count {
+      background: #fff3e0;
+      border: 1px solid #ff9800;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #e65100;
+    }
+    .offline-data-count strong {
+      font-size: 16px;
+      color: #ff9800;
+    }
+    button.upload {
+      background: #4caf50;
+      width: 100%;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+    button.upload:hover {
+      background: #388e3c;
+    }
+    button.delete {
+      background: #f44336;
+      width: 100%;
+      font-weight: bold;
+    }
+    button.delete:hover {
+      background: #da190b;
     }
     button.batch-end {
       background: #f44336;
@@ -398,7 +429,7 @@
     </div>
     <div class="mode-badge" id="modeBadge">준비중</div>
     <div class="network-status online" id="networkStatus">🟢 온라인</div>
-    <button class="new-session-header" onclick="startNewSession()">🔄</button>
+    <button class="new-session-header" onclick="startNewSession()">🔄 새 시작</button>
   </div>
   
   <div class="camera-section">
@@ -425,6 +456,13 @@
     <p>스캔: <strong id="scanCount">0</strong>회</p>
     <p id="lastStudent" style="display:none;">학생: <strong id="lastName">-</strong></p>
     <p id="distanceInfo" style="display:none;">거리: <strong id="lastDistance">-</strong>km</p>
+  </div>
+
+  <div class="section">
+    <h3>오프라인 데이터 관리</h3>
+    <div class="offline-data-count">저장됨: <strong id="offlineCount">0</strong>개</div>
+    <button class="upload" onclick="uploadData()">📤 데이터 업로드</button>
+    <button class="delete" onclick="clearData()">🗑️ 로컬 데이터 전부 삭제</button>
   </div>
 
   <div class="section">
@@ -564,10 +602,8 @@
   async function fetchWithRetry(url, retries = 3) {
     for (let i = 0; i < retries; i++) {
       try {
-        console.log(`📡 요청 시도 ${i + 1}/${retries}: ${url.substring(0, 50)}...`);
-        
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);  // 8초 타임아웃
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         
         const response = await fetch(url, {
           method: 'GET',
@@ -584,19 +620,85 @@
         }
         
         const data = await response.json();
-        console.log('✅ 응답 성공');
         return data;
         
       } catch (error) {
-        console.error(`❌ 시도 ${i + 1} 실패:`, error.message);
-        
         if (i === retries - 1) {
           throw error;
         }
-        
-        // 다음 시도 전 대기 (1초, 2초, 3초)
         await new Promise(resolve => setTimeout(resolve, (i + 1) * 1000));
       }
+    }
+  }
+
+  // ================================================
+  // 오프라인 데이터 관리
+  // ================================================
+  function saveOfflineData(qrText, scanCount, distance, totalTime, studentName) {
+    let offlineScans = JSON.parse(localStorage.getItem('offlineScans') || '[]');
+    
+    offlineScans.push({
+      qr: qrText,
+      scanCount: scanCount,
+      distance: distance,
+      totalTime: totalTime,
+      studentName: studentName,
+      timestamp: new Date().toISOString(),
+      sessionId: currentSessionId
+    });
+    
+    localStorage.setItem('offlineScans', JSON.stringify(offlineScans));
+    updateOfflineCount();
+  }
+
+  function updateOfflineCount() {
+    const offlineScans = JSON.parse(localStorage.getItem('offlineScans') || '[]');
+    document.getElementById('offlineCount').textContent = offlineScans.length;
+  }
+
+  async function uploadData() {
+    const offlineScans = JSON.parse(localStorage.getItem('offlineScans') || '[]');
+    
+    if (offlineScans.length === 0) {
+      queueMessage('업로드할 데이터 없음', 'error');
+      return;
+    }
+    
+    queueMessage('📤 업로드 중...', 'info');
+    
+    let success = 0;
+    let fail = 0;
+    
+    for (let scan of offlineScans) {
+      try {
+        const url = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(scan.qr) + '&sessionId=' + encodeURIComponent(scan.sessionId);
+        
+        const result = await fetchWithRetry(url, 2);
+        
+        if (result.success) {
+          success++;
+        } else {
+          fail++;
+        }
+      } catch (error) {
+        fail++;
+      }
+    }
+    
+    if (success > 0) {
+      localStorage.setItem('offlineScans', JSON.stringify(offlineScans.slice(success)));
+      updateOfflineCount();
+      queueMessage(`✅ ${success}개 업로드 완료`, 'success');
+    } else {
+      queueMessage('❌ 업로드 실패', 'error');
+    }
+  }
+
+  function clearData() {
+    if (confirm('정말로 로컬 데이터를 모두 삭제하시겠습니까?')) {
+      localStorage.removeItem('offlineScans');
+      updateOfflineCount();
+      queueMessage('✅ 삭제됨', 'success');
     }
   }
 
@@ -604,9 +706,8 @@
   // 초기화
   // ================================================
   function init() {
-    console.log('🚀 초기화 중...');
-    
     updateNetworkStatus();
+    updateOfflineCount();
     
     currentSessionId = localStorage.getItem('currentSessionId');
     sessionMode = localStorage.getItem('sessionMode');
@@ -751,7 +852,6 @@
       queueMessage('✅ 스캔 시작', 'success');
       
     } catch (error) {
-      console.error('카메라 오류:', error);
       queueMessage('❌ 카메라 오류', 'error');
       cameraStarted = false;
       document.getElementById('startBtn').disabled = false;
@@ -807,7 +907,6 @@
                 return;
               }
               
-              console.log('✅ QR:', code.data);
               lastQRData = code.data;
               qrCooldown = true;
               
@@ -838,8 +937,7 @@
       
       const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(qrText) + '&sessionId=' + encodeURIComponent(currentSessionId);
       
-      console.log('📤 요청 시작');
-      const result = await fetchWithRetry(appScriptUrl, 3);  // ← 재시도 로직!
+      const result = await fetchWithRetry(appScriptUrl, 3);
       
       if (result.success) {
         const scanCount = result.data.accumulated.scanCount;
@@ -849,12 +947,14 @@
         
         updateDisplay(result.data.student, distance, scanCount);
         
+        // ★ 수정된 메시지 로직
         if (scanCount === 1) {
           queueMessage('🏃 러닝 시작!', 'success');
         } else {
-          queueMessage(`📍 라운드 ${scanCount}`, 'info');
+          queueMessage(`⏱️ ${totalTime} | 거리: ${distance.toFixed(1)}km | 라운드 ${scanCount}`, 'info');
         }
         
+        // 최대거리 체크
         if (sessionMode === 'maxDistance' && distance >= maxDistance) {
           endedStudents[qrText] = true;
           showEndModal(studentName, totalTime);
@@ -865,8 +965,12 @@
         queueMessage(`❌ ${result.message}`, 'error');
       }
     } catch (error) {
-      console.error('처리 오류:', error.message);
-      queueMessage(`❌ 재시도 중...`, 'error');
+      // 오프라인 모드 - 로컬 저장
+      queueMessage('📴 오프라인 모드', 'error');
+      const parts = qrText.split('-');
+      if (parts.length === 2) {
+        saveOfflineData(qrText, 1, 0.4, '00:00:00', parts[0] + '반 ' + parts[1] + '번');
+      }
     }
     
     resumeScanning();
