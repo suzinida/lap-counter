@@ -1,9 +1,516 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <title>바퀴 카운팅</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>바퀴 카운팅 시스템</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f5f5f5;
+      padding: 10px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 3px solid #4285F4;
+      padding-bottom: 15px;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      color: #4285F4;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .camera-section {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    #video {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      border: 2px solid #4285F4;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: none;
+    }
+    
+    #canvas {
+      display: none;
+    }
+    
+    button {
+      background: #4285F4;
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      transition: background 0.3s;
+    }
+    
+    button:hover {
+      background: #357ae8;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    button.secondary {
+      background: #34A853;
+    }
+    
+    button.secondary:hover {
+      background: #2d8e47;
+    }
+    
+    .info-box {
+      background: #f9f9f9;
+      border-left: 4px solid #34A853;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      display: none;
+    }
+    
+    .info-box.show {
+      display: block;
+    }
+    
+    .info-box h3 {
+      color: #34A853;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    
+    .info-box p {
+      margin: 5px 0;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .message {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+      display: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .message.show {
+      display: block;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      border-color: #28a745;
+      color: #155724;
+    }
+    
+    .message.error {
+      background: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    
+    .stats {
+      background: #f0f7ff;
+      border: 2px solid #4285F4;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    
+    .stats h3 {
+      color: #4285F4;
+      margin-bottom: 10px;
+    }
+    
+    .stat-item {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+    
+    .stat-item strong {
+      color: #34A853;
+    }
+    
+    .pace-info {
+      background: #f0f7ff;
+      border: 2px solid #4285F4;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      display: none;
+    }
+    
+    .pace-info.show {
+      display: block;
+    }
+    
+    .pace-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      border-left: 3px solid #34A853;
+    }
+    
+    .pace-item strong {
+      color: #34A853;
+    }
+    
+    .upload-section {
+      background: #e8f5e9;
+      border: 2px solid #34A853;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    
+    .upload-section h3 {
+      color: #34A853;
+      margin-bottom: 10px;
+    }
+    
+    .upload-section p {
+      color: #555;
+      margin-bottom: 10px;
+    }
+    
+    .sync-status {
+      font-size: 12px;
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .local-count {
+      font-size: 14px;
+      color: #4285F4;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-  <h1>테스트</h1>
+
+<div class="container">
+  <div class="header">
+    <h1>바퀴 카운팅 시스템</h1>
+    <p>QR 코드를 스캔하세요</p>
+  </div>
+  
+  <div class="camera-section">
+    <video id="video" playsinline></video>
+    <canvas id="canvas"></canvas>
+    <button id="startBtn" onclick="startCamera()">카메라 시작</button>
+    <button id="stopBtn" onclick="stopCamera()" disabled>카메라 중지</button>
+  </div>
+  
+  <div class="message" id="message"></div>
+  
+  <div class="info-box" id="infoBox">
+    <h3 id="studentName">학생명</h3>
+    <p>반: <span id="classNum">-</span></p>
+    <p>번호: <span id="studentNum">-</span></p>
+    <p id="scanTime">스캔시간: -</p>
+  </div>
+  
+  <div class="stats" id="statsBox" style="display:none;">
+    <h3>현재 통계</h3>
+    <div class="stat-item">누적 바퀴: <strong id="lapCount">0</strong></div>
+    <div class="stat-item" id="timeDisplay" style="display:none;">누적시간: <strong id="totalTime">0:00</strong></div>
+    <div class="stat-item" id="paceDisplay" style="display:none;">페이스: <strong id="currentPace">-</strong></div>
+  </div>
+  
+  <div class="pace-info" id="paceInfo">
+    <p style="margin-bottom:10px; color:#4285F4; font-weight:bold;">다음 목표</p>
+    <div id="paceMessages"></div>
+  </div>
+  
+  <div class="upload-section">
+    <h3>오프라인 데이터 관리</h3>
+    <p class="local-count">로컬 저장된 스캔: <span id="localScanCount">0</span>개</p>
+    <p class="sync-status" id="syncStatus">온라인 상태에서 업로드 버튼을 누르세요</p>
+    <button class="secondary" onclick="uploadData()">데이터 업로드</button>
+    <button onclick="clearLocalData()" style="background: #f44336;">로컬 데이터 삭제</button>
+  </div>
+  
+</div>
+
+<script>
+  let video = document.getElementById('video');
+  let canvas = document.getElementById('canvas');
+  let canvasContext = canvas.getContext('2d');
+  let scanning = false;
+  
+  let db;
+  const dbRequest = indexedDB.open('LapCountingDB', 1);
+  
+  dbRequest.onerror = function() {
+    console.error('DB 열기 실패');
+  };
+  
+  dbRequest.onupgradeneeded = function(e) {
+    db = e.target.result;
+    if (!db.objectStoreNames.contains('scans')) {
+      db.createObjectStore('scans', { keyPath: 'id', autoIncrement: true });
+    }
+  };
+  
+  dbRequest.onsuccess = function(e) {
+    db = e.target.result;
+    console.log('DB 열기 성공');
+    updateLocalScanCount();
+  };
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      video.srcObject = stream;
+      video.style.display = 'block';
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      scanning = true;
+      scan();
+    } catch (error) {
+      const errorMsg = '카메라 접근 실패: ' + error.name + ' - ' + error.message;
+      showMessage(errorMsg, 'error');
+      console.error('카메라 에러:', error);
+    }
+  }
+
+  function stopCamera() {
+    const stream = video.srcObject;
+    const tracks = stream.getTracks();
+    tracks.forEach(function(track) { 
+      track.stop(); 
+    });
+    video.style.display = 'none';
+    scanning = false;
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
+  }
+
+  function scan() {
+    if (!scanning) return;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvasContext.drawImage(video, 0, 0);
+    
+    const imageData = canvasContext.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, canvas.width, canvas.height);
+    
+    if (code) {
+      handleQRData(code.data);
+      stopCamera();
+    }
+    
+    requestAnimationFrame(scan);
+  }
+
+  async function handleQRData(qrText) {
+    try {
+      showMessage('처리 중...', 'info');
+      
+      const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(qrText);
+      
+      const response = await fetch(appScriptUrl);
+      const result = await response.json();
+      
+      if (result.success) {
+        saveScanLocally(qrText, result.student);
+        displayStudentInfo(result.student);
+        showMessage('스캔 성공: ' + result.message, 'success');
+        
+        setTimeout(function() { 
+          startCamera(); 
+        }, 2000);
+      } else {
+        showMessage('오류: ' + result.message, 'error');
+        setTimeout(function() { 
+          startCamera(); 
+        }, 2000);
+      }
+    } catch (error) {
+      // 오프라인 모드: 로컬에만 저장
+      const parts = qrText.split('-');
+      if (parts.length === 2) {
+        const studentData = {
+          classNum: parseInt(parts[0]),
+          studentNum: parseInt(parts[1]),
+          name: parts[0] + '-' + parts[1]
+        };
+        saveScanLocally(qrText, studentData);
+        displayStudentInfo(studentData);
+        showMessage('오프라인 모드: 로컬에 저장되었습니다', 'success');
+        
+        setTimeout(function() { 
+          startCamera(); 
+        }, 2000);
+      } else {
+        showMessage('오류: ' + error.message, 'error');
+        setTimeout(function() { 
+          startCamera(); 
+        }, 2000);
+      }
+    }
+  }
+
+  function saveScanLocally(qrText, student) {
+    if (!db) return;
+    
+    const transaction = db.transaction(['scans'], 'readwrite');
+    const store = transaction.objectStore('scans');
+    
+    store.add({
+      qr: qrText,
+      student: student,
+      timestamp: new Date().toISOString(),
+      synced: false
+    });
+    
+    updateLocalScanCount();
+  }
+
+  function displayStudentInfo(student) {
+    document.getElementById('studentName').textContent = student.name;
+    document.getElementById('classNum').textContent = student.classNum;
+    document.getElementById('studentNum').textContent = student.studentNum;
+    document.getElementById('scanTime').textContent = 
+      '스캔시간: ' + new Date().toLocaleTimeString('ko-KR');
+    
+    document.getElementById('infoBox').classList.add('show');
+    document.getElementById('statsBox').style.display = 'block';
+    
+    const lapCount = document.getElementById('lapCount');
+    lapCount.textContent = parseInt(lapCount.textContent) + 1;
+  }
+
+  function showMessage(msg, type) {
+    if (!type) type = 'info';
+    const messageDiv = document.getElementById('message');
+    messageDiv.textContent = msg;
+    messageDiv.className = 'message show ' + type;
+    
+    setTimeout(function() {
+      messageDiv.classList.remove('show');
+    }, 3000);
+  }
+
+  function updateLocalScanCount() {
+    if (!db) return;
+    
+    const transaction = db.transaction(['scans'], 'readonly');
+    const store = transaction.objectStore('scans');
+    const request = store.count();
+    
+    request.onsuccess = function() {
+      document.getElementById('localScanCount').textContent = request.result;
+    };
+  }
+
+  async function uploadData() {
+    if (!db) return;
+    
+    showMessage('업로드 중...', 'info');
+    
+    const transaction = db.transaction(['scans'], 'readonly');
+    const store = transaction.objectStore('scans');
+    const request = store.getAll();
+    
+    request.onsuccess = async function() {
+      const scans = request.result;
+      
+      if (scans.length === 0) {
+        showMessage('업로드할 데이터가 없습니다', 'error');
+        return;
+      }
+      
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (let scan of scans) {
+        try {
+          const appScriptUrl = 'https://script.google.com/macros/s/AKfycbxC92EzuvA5WamPJ1yNwgFleCLgjSgoKdpUm3e-rkBjFawWqseG9hXZ0I7ePQwOa1sP/exec?qr=' + encodeURIComponent(scan.qr);
+          
+          const response = await fetch(appScriptUrl);
+          const result = await response.json();
+          
+          if (result.success) {
+            successCount++;
+            deleteScanFromDB(scan.id);
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          failCount++;
+        }
+      }
+      
+      showMessage('업로드 완료: 성공 ' + successCount + '개, 실패 ' + failCount + '개', 'success');
+      updateLocalScanCount();
+    };
+  }
+
+  function deleteScanFromDB(id) {
+    const transaction = db.transaction(['scans'], 'readwrite');
+    const store = transaction.objectStore('scans');
+    store.delete(id);
+  }
+
+  function clearLocalData() {
+    if (!confirm('정말 로컬 데이터를 삭제하시겠습니까? 되돌릴 수 없습니다!')) {
+      return;
+    }
+    
+    const transaction = db.transaction(['scans'], 'readwrite');
+    const store = transaction.objectStore('scans');
+    store.clear();
+    
+    updateLocalScanCount();
+    document.getElementById('lapCount').textContent = '0';
+    document.getElementById('statsBox').style.display = 'none';
+    showMessage('로컬 데이터가 삭제되었습니다', 'success');
+  }
+</script>
+
 </body>
 </html>
